@@ -1,5 +1,4 @@
 import aiohttp
-import base64
 import json
 import random
 import string
