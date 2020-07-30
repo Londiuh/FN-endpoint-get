@@ -6,6 +6,7 @@ import crayons
 import aiofiles
 import aioconsole
 import asyncio
+import sys
 
 
 ACCESS_TOKEN = "MzQ0NmNkNzI2OTRjNGE0NDg1ZDgxYjc3YWRiYjIxNDE6OTIwOWQ0YTVlMjVhNDU3ZmI5YjA3NDg5ZDMxM2I0MWE="
@@ -38,6 +39,8 @@ async def get_token() -> str:
         print(crayons.red(f"[ERROR] {response['errorCode']}"))
     else:
         print(crayons.red("[ERROR] Unknown error."))
+
+    sys.exit()
 
 
 async def get_endpoint(token: str):
