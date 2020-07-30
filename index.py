@@ -1,77 +1,90 @@
-import requests
-from base64 import b64encode
+import aiohttp
+import base64
 import json
 import random
 import string
+import crayons
+import aiofiles
+import aioconsole
+import asyncio
 
-class color:
-    PURPLE = "\033[95m"
-    CYAN = "\033[96m"
-    DARKCYAN = "\033[36m"
-    BLUE = "\033[94m" 
-    GREEN = "\033[92m"
-    YELLOW = "\033[93m"
-    RED = "\033[91m"
-    BOLD = "\033[1m"
-    UNDERLINE = "\033[4m"
-    END = "\033[0m"
 
-token = None
+ACCESS_TOKEN = "MzQ0NmNkNzI2OTRjNGE0NDg1ZDgxYjc3YWRiYjIxNDE6OTIwOWQ0YTVlMjVhNDU3ZmI5YjA3NDg5ZDMxM2I0MWE="
+# By default this is the iOS client_id & secret, if you want to change the client, you can generate one
+# from https://github.com/MixV2/EpicResearch/blob/master/docs/auth/auth_clients.md.
 
-def getToken():
-    global token
-    if token != None:
-        print(color.GREEN + "Token already generated, auth code not requiered" + color.END)
-        return token
-    print(color.PURPLE + "Insert auth code:" + color.END)
-    authCode = input()
-    id_secret = "ec684b8c687f479fadea3cb2ad83f5c6:e1f31c211f28413186262d37a13fc84d"
-    h = {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": f"basic {str(b64encode(id_secret.encode('utf-8')), 'utf-8')}"
-    }
-    b = {
-            "grant_type": "authorization_code",
-            "code": authCode
-    }
-    r = requests.post("https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token", headers=h, data=b)
-    #print(r.text)
-    r = json.loads(r.text)
-    if "access_token" in r:
-        token = r["access_token"]
-        print(color.GREEN + f"Token: {token}\nExpires at: {r['expires_at']}" + color.END)
-        return token
+
+async def get_token() -> str:
+    auth_code = await aioconsole.ainput(crayons.magenta("Insert auth code: "))
+
+    async with aiohttp.ClientSession() as session:
+        async with session.request(
+            method="POST",
+            url="https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token",
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Authorization": f"basic {ACCESS_TOKEN}"
+            },
+            data={
+                "grant_type": "authorization_code",
+                "code": auth_code
+            }
+        ) as r:
+            response = await r.json()
+
+    if "access_token" in response:
+        print(crayons.green(f"Token: {response['access_token']}\nExpires at: {response['expires_at']}."))
+        return response['access_token']
+    elif "errorCode" in response:
+        print(crayons.red(f"[ERROR] {response['errorCode']}"))
     else:
-        if "errorCode" in r:
-            print(color.RED + f"[ERROR] {r['errorCode']}" + color.END)
-        else:
-            print(color.RED + "[ERROR] Unknown error" + color.END)
-        return False
+        print(crayons.red("[ERROR] Unknown error."))
 
-def getEndpoint():
-    getToken_result = getToken()
-    if getToken_result:
-        print(color.PURPLE + "Insert endpoint:" + color.END)
-        endpoint = input()
-        if endpoint.lower().find("epicgames.com") != -1:
-            try:
-                h = {"Authorization": f"bearer {getToken_result}"}
-                r = requests.get(endpoint, headers=h)
-                print(r.text)
-                print(color.CYAN + "Do you want to save the response into a json file? " + color.GREEN + "Y | N" + color.END)
-                saveFile = input()
-                if saveFile.lower() == "y" or saveFile.lower() == "yes":
-                    random_name = "".join(random.choice(string.ascii_lowercase) for i in range(5))
-                    with open(f"{random_name}.json", "x") as f:
-                        try:
-                            f.write(r.text)
-                            print(color.YELLOW + f"File successfully saved (./{random_name}.json)" + color.END)
-                        except Exception as e:
-                            print(color.RED + f"[ERROR] Couldn't save the file ({e})" + color.END)
-            except:
-                print(color.RED + "[ERROR] Something went wrong :(" + color.END)
-        else:
-            print(color.RED + "[ERROR] Invalid endpoint, insert a valid Fortnite endpoint" + color.END)
-    getEndpoint()
 
-getEndpoint()
+async def get_endpoint(token: str):
+
+    if token:
+        endpoint = await aioconsole.ainput(crayons.magenta("Insert endpoint: "))
+    else:
+        return
+
+    if 'epicgames.com' not in endpoint:
+        print(crayons.red("[ERROR] Invalid endpoint, please insert a valid Fortnite endpoint."))
+        return
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.request(
+                    method="GET",
+                    url=endpoint,
+                    headers={
+                        "Authorization": f"bearer {token}"
+                    }
+            ) as r:
+                response = await r.json()
+    except aiohttp.ClientConnectorError as epic_error:
+        print(crayons.red(f"[ERROR] Something went wrong: {epic_error}"))
+        return
+
+    print(json.dumps(response, sort_keys=False, indent=4))
+
+    save_file = await aioconsole.ainput(crayons.cyan("Do you want to save the response into a json file? (Y/N): "))
+    if 'y' in save_file.lower():
+        name = f'{endpoint.split("/")[-1]}-{random.randint(1, 999)}'
+
+        async with aiofiles.open(f'{name}.json', mode='r') as f:
+            await f.write(json.dumps(response, sort_keys=False, indent=4))
+
+        print(crayons.yellow(f"File successfully saved (./{name}.json)"))
+
+
+async def main():
+    token = await get_token()
+    while True:
+        await get_endpoint(token=token)
+
+
+if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
+    loop.close()
