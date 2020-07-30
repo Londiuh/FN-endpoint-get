@@ -81,7 +81,7 @@ async def get_endpoint(token: str):
         print(crayons.yellow(f"File successfully saved (./{name}.json)"))
 
 
-async def main():
+async def main() -> None:
     token = await get_token()
     while True:
         await get_endpoint(token=token)
