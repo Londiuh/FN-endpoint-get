@@ -40,7 +40,8 @@ async def get_token() -> str:
     else:
         print(crayons.red("[ERROR] Unknown error."))
 
-    sys.exit()
+    if __name__ == "__main__":
+        sys.exit()
 
 
 async def get_endpoint(token: str):
