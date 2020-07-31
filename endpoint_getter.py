@@ -1,7 +1,6 @@
 import aiohttp
 import json
 import random
-import string
 import crayons
 import aiofiles
 import aioconsole
@@ -75,7 +74,7 @@ async def get_endpoint(token: str):
     if 'y' in save_file.lower():
         name = f'{endpoint.split("/")[-1]}-{random.randint(1, 999)}'
 
-        async with aiofiles.open(f'{name}.json', mode='r') as f:
+        async with aiofiles.open(f'{name}.json', mode='w+') as f:
             await f.write(json.dumps(response, sort_keys=False, indent=4))
 
         print(crayons.yellow(f"File successfully saved (./{name}.json)"))
